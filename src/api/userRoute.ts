@@ -6,6 +6,7 @@ import {
    changePassword,
    createUser,
    deleteUser,
+   getAllUsers,
    login,
    updateUser
 } from '../controllers/userController';
@@ -53,6 +54,7 @@ const deleteUserValidation = [
    body('password').notEmpty().withMessage('Password is required')
 ];
 
+router.get('/all', getAllUsers);
 router.post('/create', createUserValidation, createUser);
 router.post('/login', loginValidation, login);
 router.put('/update/:id', updateUserValidation, updateUser);

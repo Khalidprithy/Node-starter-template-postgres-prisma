@@ -1,10 +1,6 @@
 // src/config/db.ts
 
-import mongoose, { ConnectOptions } from 'mongoose';
-
-interface MongooseOptions extends ConnectOptions {
-   useNewUrlParser: boolean;
-}
+import mongoose from 'mongoose';
 
 const connectToDatabase = (): void => {
    try {
@@ -18,9 +14,7 @@ const connectToDatabase = (): void => {
          return;
       }
 
-      mongoose.connect(dbUri, {
-         useNewUrlParser: true
-      } as MongooseOptions);
+      mongoose.connect(dbUri);
 
       const db = mongoose.connection;
 

@@ -233,6 +233,21 @@ export const changePassword = async (
    }
 };
 
+export const getAllUsers = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   try {
+      const users = await UserModel.find({}, { password: 0, __v: 0 });
+
+      res.json({ success: true, users });
+   } catch (error) {
+      console.error('Error getting all users:', error);
+      next(error);
+   }
+};
+
 export const deleteUser = async (
    req: Request,
    res: Response,
