@@ -13,46 +13,50 @@ import {
 
 const router = express.Router();
 
+// Common validation middleware
+const emailValidation = body('email')
+   .isEmail()
+   .withMessage('Invalid email format');
+const passwordValidation = body('password')
+   .notEmpty()
+   .withMessage('Password is required');
+const nameValidation = body('name').notEmpty().withMessage('Name is required');
+const imageValidation = body('image')
+   .optional()
+   .isURL()
+   .withMessage('Invalid image URL format');
+const designationValidation = body('designation')
+   .optional()
+   .notEmpty()
+   .withMessage('Designation is required');
+const newPasswordValidation = body('newPassword')
+   .isLength({ min: 6 })
+   .withMessage('New password must be at least 6 characters long');
+
 // Validation middleware for create user route
 const createUserValidation = [
-   body('name').notEmpty().withMessage('Name is required'),
-   body('email').isEmail().withMessage('Invalid email format'),
-   body('password')
-      .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters long')
+   nameValidation,
+   emailValidation,
+   passwordValidation
    // Add more validation rules as needed
 ];
 
 // Validation middleware for login route
-const loginValidation = [
-   body('email').isEmail().withMessage('Invalid email format'),
-   body('password').notEmpty().withMessage('Password is required')
-];
+const loginValidation = [emailValidation, passwordValidation];
 
 // Validation middleware for update user route
 const updateUserValidation = [
-   body('name').optional().notEmpty().withMessage('Name is required'),
-   body('image').optional().isURL().withMessage('Invalid image URL format'),
-   body('designation')
-      .optional()
-      .notEmpty()
-      .withMessage('Designation is required')
+   nameValidation,
+   imageValidation,
+   designationValidation
    // Add more validation rules as needed
 ];
 
 // Validation middleware for change password
-const changePasswordValidation = [
-   body('oldPassword').notEmpty().withMessage('Old password is required'),
-   body('newPassword')
-      .isLength({ min: 6 })
-      .withMessage('New password must be at least 6 characters long')
-];
+const changePasswordValidation = [passwordValidation, newPasswordValidation];
 
 // Validation middleware for delete user route
-const deleteUserValidation = [
-   body('email').isEmail().withMessage('Invalid email format'),
-   body('password').notEmpty().withMessage('Password is required')
-];
+const deleteUserValidation = [emailValidation, passwordValidation];
 
 router.get('/all', getAllUsers);
 router.post('/create', createUserValidation, createUser);
