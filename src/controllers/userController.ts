@@ -5,21 +5,27 @@ import { validationResult } from 'express-validator';
 import jwt from 'jsonwebtoken';
 import UserModel from '../models/User';
 
+// Helpers
+const generateToken = (payload: any, secret: string, expiresIn: string) => {
+   return jwt.sign(payload, secret, { expiresIn });
+};
+
+// ********************** Registration ********************** //
 export const createUser = async (
    req: Request,
    res: Response,
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
-   // Validate input using express-validator
-   const errors = validationResult(req);
-   if (!errors.isEmpty()) {
-      return res.status(422).json({ success: false, errors: errors.array() });
-   }
-
-   const { name, email, password, role, image, designation } = req.body;
-
    try {
-      // Hash password
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+         return res
+            .status(422)
+            .json({ success: false, errors: errors.array() });
+      }
+
+      const { name, email, password, role, image, designation } = req.body;
+
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const userModel = new UserModel({
@@ -33,17 +39,15 @@ export const createUser = async (
 
       const savedUser = await userModel.save();
 
-      // (access token and refresh token)
-      const accessToken = jwt.sign(
+      const accessToken = generateToken(
          { userId: savedUser._id, email: savedUser.email },
          process.env.JWT_SECRET as string,
-         { expiresIn: '1h' } // 1 hour
+         '1h'
       );
-
-      const refreshToken = jwt.sign(
+      const refreshToken = generateToken(
          { userId: savedUser._id, email: savedUser.email },
          process.env.JWT_SECRET_REFRESH as string,
-         { expiresIn: '7d' } // 7 days
+         '7d'
       );
 
       res.json({
@@ -63,50 +67,42 @@ export const createUser = async (
    }
 };
 
+// ********************** Login ********************** //
 export const login = async (
    req: Request,
    res: Response,
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
-   // Validate input using express-validator
-   const errors = validationResult(req);
-   if (!errors.isEmpty()) {
-      return res.status(422).json({ success: false, errors: errors.array() });
-   }
-
-   const { email, password } = req.body;
-
    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+         return res
+            .status(422)
+            .json({ success: false, errors: errors.array() });
+      }
+
+      const { email, password } = req.body;
+
       // Find the user
       const user = await UserModel.findOne({ email });
 
-      // user is not found
-      if (!user) {
+      // user is not found or password is invalid
+      if (!user || !(await bcrypt.compare(password, user.password))) {
          return res
             .status(401)
-            .json({ success: false, error: 'Invalid credentials' });
-      }
-
-      // Compare password
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-
-      if (!isPasswordValid) {
-         return res
-            .status(401)
-            .json({ success: false, error: 'Invalid credentials' });
+            .json({ success: false, error: 'Invalid email or password' });
       }
 
       // (access token and refresh token)
-      const accessToken = jwt.sign(
+      const accessToken = generateToken(
          { userId: user._id, email: user.email },
          process.env.JWT_SECRET as string,
-         { expiresIn: '1h' } // 1 hour
+         '1h'
       );
-
-      const refreshToken = jwt.sign(
+      const refreshToken = generateToken(
          { userId: user._id, email: user.email },
          process.env.JWT_SECRET_REFRESH as string,
-         { expiresIn: '7d' } // 7 days
+         '7d'
       );
 
       res.json({
@@ -125,12 +121,13 @@ export const login = async (
    }
 };
 
+// ********************** Update Profile ********************** //
 export const updateUser = async (
    req: Request,
    res: Response,
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
-   // Validate input using express-validator
+   // Express-validator
    const errors = validationResult(req);
    if (!errors.isEmpty()) {
       return res.status(422).json({ success: false, errors: errors.array() });
@@ -170,21 +167,23 @@ export const updateUser = async (
    }
 };
 
+// ********************** Change Password ********************** //
 export const changePassword = async (
    req: Request,
    res: Response,
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
-   // Validate input using express-validator
-   const errors = validationResult(req);
-   if (!errors.isEmpty()) {
-      return res.status(422).json({ success: false, errors: errors.array() });
-   }
-
-   const userId = req.params.id;
-   const { oldPassword, newPassword } = req.body;
-
    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+         return res
+            .status(422)
+            .json({ success: false, errors: errors.array() });
+      }
+
+      const userId = req.params.id;
+      const { oldPassword, newPassword } = req.body;
+
       // Find the user
       const user = await UserModel.findById(userId);
 
@@ -212,10 +211,10 @@ export const changePassword = async (
       await user.save();
 
       // (access token)
-      const accessToken = jwt.sign(
+      const accessToken = generateToken(
          { userId: user._id, email: user.email },
          process.env.JWT_SECRET as string,
-         { expiresIn: '1h' } // 1 hour
+         '1h'
       );
 
       res.json({
@@ -233,6 +232,7 @@ export const changePassword = async (
    }
 };
 
+// ********************** All Users ********************** //
 export const getAllUsers = async (
    req: Request,
    res: Response,
@@ -248,12 +248,13 @@ export const getAllUsers = async (
    }
 };
 
+// ********************** Delete User ********************** //
 export const deleteUser = async (
    req: Request,
    res: Response,
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
-   // Validate input using express-validator
+   // Express-validator
    const errors = validationResult(req);
    if (!errors.isEmpty()) {
       return res.status(422).json({ success: false, errors: errors.array() });

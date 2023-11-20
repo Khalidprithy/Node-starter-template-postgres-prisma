@@ -2,16 +2,18 @@
 
 import express from 'express';
 import path from 'path';
+import teacherRoute from '../api/teacherRoute';
 import userRoute from '../api/userRoute';
 
 const createRoutes = (app: express.Application): void => {
-   // Serve static files from the 'public' directory
+   // 'public' directory access
    app.use(express.static(path.join(__dirname, '../../public')));
 
-   // secure routes
-   app.use('/api/user', userRoute);
+   // secure routes starts with '/api'
 
-   // Add other routes as needed
+   app.use('/api/user', userRoute);
+   app.use('/api/teacher', teacherRoute);
+   // other routes here
 };
 
 export default createRoutes;

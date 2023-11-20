@@ -33,29 +33,27 @@ const newPasswordValidation = body('newPassword')
    .isLength({ min: 6 })
    .withMessage('New password must be at least 6 characters long');
 
-// Validation middleware for create user route
+// Create User Route Validation
 const createUserValidation = [
    nameValidation,
    emailValidation,
    passwordValidation
-   // Add more validation rules as needed
 ];
 
-// Validation middleware for login route
+// login Route Validation
 const loginValidation = [emailValidation, passwordValidation];
 
-// Validation middleware for update user route
+// Update User Route Validation
 const updateUserValidation = [
    nameValidation,
    imageValidation,
    designationValidation
-   // Add more validation rules as needed
 ];
 
-// Validation middleware for change password
+// Change Password Route Validation
 const changePasswordValidation = [passwordValidation, newPasswordValidation];
 
-// Validation middleware for delete user route
+// Delete User Route Validation
 const deleteUserValidation = [emailValidation, passwordValidation];
 
 router.get('/all', getAllUsers);
