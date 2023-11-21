@@ -1,12 +1,10 @@
-// src/models/Teacher.ts
-
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface ITeacher extends Document {
    name: string;
    subject: string;
    qualification: string;
-   experience: string;
+   experience: number;
    contactInfo: string;
 }
 
@@ -24,7 +22,7 @@ const teacherSchema: Schema = new Schema({
       required: true
    },
    experience: {
-      type: String,
+      type: Number,
       required: true
    },
    contactInfo: {

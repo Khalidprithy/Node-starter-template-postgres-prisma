@@ -1,7 +1,5 @@
-// src/api/teacherRoute.ts
-
 import express from 'express';
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
 import {
    createTeacher,
    deleteTeacher,
@@ -13,7 +11,6 @@ const router = express.Router();
 
 // Common validation middleware
 const nameValidation = body('name').notEmpty().withMessage('Name is required');
-
 const subjectValidation = body('subject')
    .notEmpty()
    .withMessage('Subject is required');
@@ -22,7 +19,8 @@ const qualificationValidation = body('qualification')
    .withMessage('Qualification is required');
 const experienceValidation = body('experience')
    .notEmpty()
-   .withMessage('Experience is required');
+   .isInt()
+   .withMessage('Valid experience is required');
 const contactInfoValidation = body('contactInfo')
    .notEmpty()
    .withMessage('Contact information is required');
@@ -38,6 +36,10 @@ const createTeacherValidation = [
 
 // Update Teacher Route Validation
 const updateTeacherValidation = [
+   param('id')
+      .notEmpty()
+      .isMongoId()
+      .withMessage('Valid teacher ID is required'),
    nameValidation,
    subjectValidation,
    qualificationValidation,
@@ -55,6 +57,13 @@ router.post('/create', createTeacherValidation, createTeacher);
 router.put('/update/:id', updateTeacherValidation, updateTeacher);
 
 // Delete Teacher Route
-router.delete('/delete/:id', deleteTeacher);
+router.delete(
+   '/delete/:id',
+   param('id')
+      .notEmpty()
+      .isMongoId()
+      .withMessage('Valid teacher ID is required'),
+   deleteTeacher
+);
 
 export default router;
