@@ -12,9 +12,10 @@ export const createSchool = async (
       // Validate that the school with the same name doesn't already exist
       const existingSchool = await School.findOne({ name });
       if (existingSchool) {
-         return res
-            .status(400)
-            .json({ error: 'School with the same name already exists' });
+         return res.status(400).json({
+            success: false,
+            error: 'School with the same name already exists'
+         });
       }
 
       const newSchool = new School({
@@ -26,7 +27,7 @@ export const createSchool = async (
       });
 
       const savedSchool = await newSchool.save();
-      res.status(201).json(savedSchool);
+      res.status(201).json({ success: true, data: savedSchool });
    } catch (error) {
       console.error(error);
       next(error);
@@ -40,7 +41,7 @@ export const getAllSchools = async (
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
       const schools = await School.find();
-      res.status(200).json(schools);
+      res.status(200).json({ success: true, data: schools });
    } catch (error) {
       console.error(error);
       next(error);
@@ -58,13 +59,17 @@ export const updateSchool = async (
 
       // Validate that the school ID is valid
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res.status(400).json({ error: 'Invalid school ID' });
+         return res
+            .status(400)
+            .json({ success: false, error: 'Invalid school ID' });
       }
 
       // Validate that the school with the given ID exists
       const existingSchool = await School.findById(id);
       if (!existingSchool) {
-         return res.status(404).json({ error: 'School not found' });
+         return res
+            .status(404)
+            .json({ success: false, error: 'School not found' });
       }
 
       // Update school fields
@@ -75,7 +80,7 @@ export const updateSchool = async (
       existingSchool.foundedYear = foundedYear;
 
       const updatedSchool = await existingSchool.save();
-      res.status(200).json(updatedSchool);
+      res.status(200).json({ success: true, data: updatedSchool });
    } catch (error) {
       console.error(error);
       next(error);
@@ -92,16 +97,23 @@ export const deleteSchool = async (
 
       // Validate that the school ID is valid
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res.status(400).json({ error: 'Invalid school ID' });
+         return res
+            .status(400)
+            .json({ success: false, error: 'Invalid school ID' });
       }
 
       // Validate that the school with the given ID exists
       const existingSchool = await School.findById(id);
       if (!existingSchool) {
-         return res.status(404).json({ error: 'School not found' });
+         return res
+            .status(404)
+            .json({ success: false, error: 'School not found' });
       }
 
-      await existingSchool.deleteOne();
+      await existingSchool.deleteOne({
+         success: true,
+         message: 'School deleted successfully'
+      });
       res.status(204).send();
    } catch (error) {
       console.error(error);

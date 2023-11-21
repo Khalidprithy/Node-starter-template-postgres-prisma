@@ -8,7 +8,7 @@ export const getAllStudents = async (
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
       const students = await Student.find();
-      res.status(200).json(students);
+      res.status(200).json({ success: true, data: students });
    } catch (error) {
       console.error(error);
       next(error);
@@ -31,7 +31,7 @@ export const createStudent = async (
       });
 
       const savedStudent = await newStudent.save();
-      res.status(201).json(savedStudent);
+      res.status(201).json({ success: true, data: savedStudent });
    } catch (error) {
       console.error(error);
       next(error);
@@ -49,13 +49,17 @@ export const updateStudent = async (
 
       // Validate that the student ID is valid
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res.status(400).json({ error: 'Invalid student ID' });
+         return res
+            .status(400)
+            .json({ success: false, error: 'Invalid student ID' });
       }
 
       // Validate that the student with the given ID exists
       const existingStudent = await Student.findById(id);
       if (!existingStudent) {
-         return res.status(404).json({ error: 'Student not found' });
+         return res
+            .status(404)
+            .json({ success: false, error: 'Student not found' });
       }
 
       // Update student fields
@@ -65,7 +69,7 @@ export const updateStudent = async (
       existingStudent.admissionDate = admissionDate;
 
       const updatedStudent = await existingStudent.save();
-      res.status(200).json(updatedStudent);
+      res.status(200).json({ success: true, data: updatedStudent });
    } catch (error) {
       console.error(error);
       next(error);
@@ -82,17 +86,24 @@ export const deleteStudent = async (
 
       // Validate that the student ID is valid
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res.status(400).json({ error: 'Invalid student ID' });
+         return res
+            .status(400)
+            .json({ success: false, error: 'Invalid student ID' });
       }
 
       // Validate that the student with the given ID exists
       const existingStudent = await Student.findById(id);
       if (!existingStudent) {
-         return res.status(404).json({ error: 'Student not found' });
+         return res
+            .status(404)
+            .json({ success: false, error: 'Student not found' });
       }
 
       await existingStudent.deleteOne();
-      res.status(204).send();
+      res.status(204).send({
+         success: true,
+         message: 'Student deleted successfully'
+      });
    } catch (error) {
       console.error(error);
       next(error);
