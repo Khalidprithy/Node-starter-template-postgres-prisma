@@ -11,7 +11,7 @@ export const getAllTeachers = async (
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
       const teachers = await TeacherModel.find();
-      res.json({ success: true, teachers });
+      res.json({ success: true, data: teachers });
    } catch (error) {
       console.error('Error fetching teachers:', error);
       next(error);
