@@ -5,6 +5,11 @@ import { validationResult } from 'express-validator';
 import jwt from 'jsonwebtoken';
 import UserModel from '../models/User';
 
+interface DecodedToken {
+   userId: string;
+   email: string;
+}
+
 // Helpers
 const generateToken = (payload: any, secret: string, expiresIn: string) => {
    return jwt.sign(payload, secret, { expiresIn });
@@ -117,6 +122,58 @@ export const login = async (
       });
    } catch (error) {
       console.error('Error during login:', error);
+      next(error);
+   }
+};
+
+// ********************** Token Refresh ********************** //
+export const refreshAccessToken = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   try {
+      const { refreshToken } = req.body;
+
+      // Check if a refresh token is provided
+      if (!refreshToken) {
+         return res
+            .status(400)
+            .json({ success: false, error: 'Refresh token is required' });
+      }
+
+      // Verify the refresh token
+      jwt.verify(
+         refreshToken,
+         process.env.JWT_SECRET_REFRESH as string,
+         (err: any, decoded: any) => {
+            if (err) {
+               return res
+                  .status(401)
+                  .json({ success: false, error: 'Invalid refresh token' });
+            }
+
+            // Extract userId and email from the decoded refresh token
+            const { userId, email } = decoded as {
+               userId: string;
+               email: string;
+            };
+
+            // Generate a new access token
+            const newAccessToken = generateToken(
+               { userId, email },
+               process.env.JWT_SECRET as string,
+               '1h'
+            );
+
+            res.json({
+               success: true,
+               accessToken: newAccessToken
+            });
+         }
+      );
+   } catch (error) {
+      console.error('Error refreshing access token:', error);
       next(error);
    }
 };

@@ -8,6 +8,7 @@ import {
    deleteUser,
    getAllUsers,
    login,
+   refreshAccessToken,
    updateUser
 } from '../controllers/userController';
 
@@ -62,5 +63,6 @@ router.post('/login', loginValidation, login);
 router.put('/update/:id', updateUserValidation, updateUser);
 router.post('/change-password/:id', changePasswordValidation, changePassword);
 router.delete('/delete', deleteUserValidation, deleteUser);
+router.post('/refresh-token', refreshAccessToken);
 
 export default router;

@@ -1,5 +1,4 @@
 // src/app.ts
-
 import dotenv from 'dotenv';
 import express from 'express';
 import configureApp from './config/config';
