@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import { NextFunction, Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import jwt from 'jsonwebtoken';
-import UserModel from '../models/User';
+import prisma from '../../prisma';
 
 interface DecodedToken {
    userId: string;
@@ -31,34 +31,55 @@ export const createUser = async (
 
       const { name, email, password, role, image, designation } = req.body;
 
+      // const userExists = await prisma.user.findUnique({
+      //    where: {
+      //       email: email
+      //    }
+      // });
+
+      // if (userExists) {
+      //    res.status(422).json({
+      //       success: false,
+      //       error: 'User with the same email already exists. Please choose a different email.'
+      //    });
+      // }
+
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const userModel = new UserModel({
-         name,
-         email,
-         password: hashedPassword,
-         role,
-         image,
-         designation
-      });
-
-      const savedUser = await userModel.save();
-
-      const accessToken = generateToken(
-         { userId: savedUser._id, email: savedUser.email },
-         process.env.JWT_SECRET as string,
-         '1h'
-      );
       const refreshToken = generateToken(
-         { userId: savedUser._id, email: savedUser.email },
+         { name: name, email: email },
          process.env.JWT_SECRET_REFRESH as string,
          '7d'
       );
 
+      const savedUser = await prisma.user.create({
+         data: {
+            name,
+            email,
+            password: hashedPassword,
+            role,
+            image,
+            designation,
+            refreshToken
+         }
+      });
+
+      // const savedUser = await userModel.save();
+
+      const accessToken = generateToken(
+         { userId: savedUser.id, email: savedUser.email },
+         process.env.JWT_SECRET_ACCESS as string,
+         '1h'
+      );
+
+      // Res with http only cookie token
+      res.cookie('jwt', refreshToken, {
+         httpOnly: true,
+         maxAge: 24 * 60 * 60 * 1000
+      });
       res.json({
          success: true,
          accessToken,
-         refreshToken,
          user: {
             name: savedUser.name,
             email: savedUser.email,
@@ -72,278 +93,299 @@ export const createUser = async (
    }
 };
 
-// ********************** Login ********************** //
-export const login = async (
-   req: Request,
-   res: Response,
-   next: NextFunction
-): Promise<void | Response<any, Record<string, any>>> => {
-   try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-         return res
-            .status(422)
-            .json({ success: false, errors: errors.array() });
-      }
+// // ********************** Login ********************** //
+// export const login = async (
+//    req: Request,
+//    res: Response,
+//    next: NextFunction
+// ): Promise<void | Response<any, Record<string, any>>> => {
+//    try {
+//       const errors = validationResult(req);
+//       if (!errors.isEmpty()) {
+//          return res
+//             .status(422)
+//             .json({ success: false, errors: errors.array() });
+//       }
 
-      const { email, password } = req.body;
+//       const { email, password } = req.body;
 
-      // Find the user
-      const user = await UserModel.findOne({ email });
+//       // Find the user
+//       const user = await UserModel.findOne({ email });
 
-      // user is not found or password is invalid
-      if (!user || !(await bcrypt.compare(password, user.password))) {
-         return res
-            .status(401)
-            .json({ success: false, error: 'Invalid email or password' });
-      }
+//       // user is not found or password is invalid
+//       if (!user || !(await bcrypt.compare(password, user.password))) {
+//          return res
+//             .status(401)
+//             .json({ success: false, error: 'Invalid email or password' });
+//       }
 
-      // (access token and refresh token)
-      const accessToken = generateToken(
-         { userId: user._id, email: user.email },
-         process.env.JWT_SECRET as string,
-         '1h'
-      );
-      const refreshToken = generateToken(
-         { userId: user._id, email: user.email },
-         process.env.JWT_SECRET_REFRESH as string,
-         '7d'
-      );
+//       // (access token and refresh token)
+//       const accessToken = generateToken(
+//          { userId: user._id, email: user.email },
+//          process.env.JWT_SECRET_ACCESS as string,
+//          '1h'
+//       );
+//       const refreshToken = generateToken(
+//          { name: user.name, email: user.email },
+//          process.env.JWT_SECRET_REFRESH as string,
+//          '7d'
+//       );
 
-      res.json({
-         success: true,
-         accessToken,
-         refreshToken,
-         user: {
-            name: user.name,
-            email: user.email,
-            image: user.image
-         }
-      });
-   } catch (error) {
-      console.error('Error during login:', error);
-      next(error);
-   }
-};
+//       // Update the user document with the new refresh token
+//       await UserModel.updateOne({ email }, { refreshToken });
 
-// ********************** Token Refresh ********************** //
-export const refreshAccessToken = async (
-   req: Request,
-   res: Response,
-   next: NextFunction
-): Promise<void | Response<any, Record<string, any>>> => {
-   try {
-      const { refreshToken } = req.body;
+//       // Res with http only cookie token
+//       res.cookie('jwt', refreshToken, {
+//          httpOnly: true,
+//          maxAge: 24 * 60 * 60 * 1000
+//       });
+//       res.json({
+//          success: true,
+//          accessToken,
+//          user: {
+//             name: user.name,
+//             email: user.email,
+//             image: user.image
+//          }
+//       });
+//    } catch (error) {
+//       console.error('Error during login:', error);
+//       next(error);
+//    }
+// };
 
-      // Check if a refresh token is provided
-      if (!refreshToken) {
-         return res
-            .status(400)
-            .json({ success: false, error: 'Refresh token is required' });
-      }
+// // ********************** Token Refresh ********************** //
+// export const refreshAccessToken = async (
+//    req: Request,
+//    res: Response,
+//    next: NextFunction
+// ): Promise<void | Response<any, Record<string, any>>> => {
+//    try {
+//       const cookies = req.cookies;
 
-      // Verify the refresh token
-      jwt.verify(
-         refreshToken,
-         process.env.JWT_SECRET_REFRESH as string,
-         (err: any, decoded: any) => {
-            if (err) {
-               return res
-                  .status(401)
-                  .json({ success: false, error: 'Invalid refresh token' });
-            }
+//       if (!cookies?.jwt) {
+//          return res.status(401).json({
+//             success: false,
+//             error: 'Unauthorized: Missing refresh token'
+//          });
+//       }
 
-            // Extract userId and email from the decoded refresh token
-            const { userId, email } = decoded as {
-               userId: string;
-               email: string;
-            };
+//       const refreshToken = cookies.jwt;
 
-            // Generate a new access token
-            const newAccessToken = generateToken(
-               { userId, email },
-               process.env.JWT_SECRET as string,
-               '1h'
-            );
+//       // Find the user
+//       const foundUser = await UserModel.findOne({ refreshToken });
 
-            res.json({
-               success: true,
-               accessToken: newAccessToken
-            });
-         }
-      );
-   } catch (error) {
-      console.error('Error refreshing access token:', error);
-      next(error);
-   }
-};
+//       // Check if it's a valid user
+//       if (!foundUser) {
+//          return res.status(403).json({
+//             success: false,
+//             error: 'Forbidden access: User not found'
+//          });
+//       }
 
-// ********************** Update Profile ********************** //
-export const updateUser = async (
-   req: Request,
-   res: Response,
-   next: NextFunction
-): Promise<void | Response<any, Record<string, any>>> => {
-   // Express-validator
-   const errors = validationResult(req);
-   if (!errors.isEmpty()) {
-      return res.status(422).json({ success: false, errors: errors.array() });
-   }
+//       // Verify the refresh token
+//       jwt.verify(
+//          refreshToken,
+//          process.env.JWT_SECRET_REFRESH as string,
+//          (err: any, decoded: any) => {
+//             if (err || foundUser.email !== decoded.email) {
+//                return res.status(403).json({
+//                   success: false,
+//                   error: 'Forbidden access: Invalid refresh token'
+//                });
+//             }
 
-   const userId = req.params.id;
-   const { name, image, designation } = req.body;
+//             // Extract userId and email from the decoded refresh token
+//             const { name, email } = decoded as {
+//                name: string;
+//                email: string;
+//             };
 
-   try {
-      // Find the user
-      const user = await UserModel.findById(userId);
+//             // Generate a new access token
+//             const newAccessToken = generateToken(
+//                { name, email },
+//                process.env.JWT_SECRET_ACCESS as string,
+//                '1h'
+//             );
 
-      // user is not found
-      if (!user) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'User not found' });
-      }
+//             res.json({
+//                success: true,
+//                accessToken: newAccessToken
+//             });
+//          }
+//       );
+//    } catch (error) {
+//       console.error('Error refreshing access token:', error);
+//       next(error);
+//    }
+// };
 
-      user.name = name || user.name;
-      user.image = image || user.image;
-      user.designation = designation || user.designation;
-      await user.save();
+// // ********************** Update Profile ********************** //
+// export const updateUser = async (
+//    req: Request,
+//    res: Response,
+//    next: NextFunction
+// ): Promise<void | Response<any, Record<string, any>>> => {
+//    // Express-validator
+//    const errors = validationResult(req);
+//    if (!errors.isEmpty()) {
+//       return res.status(422).json({ success: false, errors: errors.array() });
+//    }
 
-      res.json({
-         success: true,
-         user: {
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            designation: user.designation
-         }
-      });
-   } catch (error) {
-      console.error('Error updating user:', error);
-      next(error);
-   }
-};
+//    const userId = req.params.id;
+//    const { name, image, designation } = req.body;
 
-// ********************** Change Password ********************** //
-export const changePassword = async (
-   req: Request,
-   res: Response,
-   next: NextFunction
-): Promise<void | Response<any, Record<string, any>>> => {
-   try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-         return res
-            .status(422)
-            .json({ success: false, errors: errors.array() });
-      }
+//    try {
+//       // Find the user
+//       const user = await UserModel.findById(userId);
 
-      const userId = req.params.id;
-      const { oldPassword, newPassword } = req.body;
+//       // user is not found
+//       if (!user) {
+//          return res
+//             .status(404)
+//             .json({ success: false, error: 'User not found' });
+//       }
 
-      // Find the user
-      const user = await UserModel.findById(userId);
+//       user.name = name || user.name;
+//       user.image = image || user.image;
+//       user.designation = designation || user.designation;
+//       await user.save();
 
-      // user is not found
-      if (!user) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'User not found' });
-      }
+//       res.json({
+//          success: true,
+//          user: {
+//             name: user.name,
+//             email: user.email,
+//             image: user.image,
+//             designation: user.designation
+//          }
+//       });
+//    } catch (error) {
+//       console.error('Error updating user:', error);
+//       next(error);
+//    }
+// };
 
-      // Compare old password
-      const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+// // ********************** Change Password ********************** //
+// export const changePassword = async (
+//    req: Request,
+//    res: Response,
+//    next: NextFunction
+// ): Promise<void | Response<any, Record<string, any>>> => {
+//    try {
+//       const errors = validationResult(req);
+//       if (!errors.isEmpty()) {
+//          return res
+//             .status(422)
+//             .json({ success: false, errors: errors.array() });
+//       }
 
-      if (!isPasswordValid) {
-         return res
-            .status(401)
-            .json({ success: false, error: 'Invalid old password' });
-      }
+//       const userId = req.params.id;
+//       const { oldPassword, newPassword } = req.body;
 
-      // Hash new password
-      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+//       // Find the user
+//       const user = await UserModel.findById(userId);
 
-      // Update user's password
-      user.password = hashedNewPassword;
-      await user.save();
+//       // user is not found
+//       if (!user) {
+//          return res
+//             .status(404)
+//             .json({ success: false, error: 'User not found' });
+//       }
 
-      // (access token)
-      const accessToken = generateToken(
-         { userId: user._id, email: user.email },
-         process.env.JWT_SECRET as string,
-         '1h'
-      );
+//       // Compare old password
+//       const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
 
-      res.json({
-         success: true,
-         accessToken,
-         user: {
-            name: user.name,
-            email: user.email,
-            image: user.image
-         }
-      });
-   } catch (error) {
-      console.error('Error changing password:', error);
-      next(error);
-   }
-};
+//       if (!isPasswordValid) {
+//          return res
+//             .status(401)
+//             .json({ success: false, error: 'Invalid old password' });
+//       }
 
-// ********************** All Users ********************** //
-export const getAllUsers = async (
-   req: Request,
-   res: Response,
-   next: NextFunction
-): Promise<void | Response<any, Record<string, any>>> => {
-   try {
-      const users = await UserModel.find({}, { password: 0, __v: 0 });
+//       // Hash new password
+//       const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-      res.json({ success: true, users });
-   } catch (error) {
-      console.error('Error getting all users:', error);
-      next(error);
-   }
-};
+//       // Update user's password
+//       user.password = hashedNewPassword;
+//       await user.save();
 
-// ********************** Delete User ********************** //
-export const deleteUser = async (
-   req: Request,
-   res: Response,
-   next: NextFunction
-): Promise<void | Response<any, Record<string, any>>> => {
-   // Express-validator
-   const errors = validationResult(req);
-   if (!errors.isEmpty()) {
-      return res.status(422).json({ success: false, errors: errors.array() });
-   }
-   const { email, password } = req.body;
+//       // (access token)
+//       const accessToken = generateToken(
+//          { userId: user._id, email: user.email },
+//          process.env.JWT_SECRET_ACCESS as string,
+//          '1h'
+//       );
 
-   try {
-      // Find the user
-      const user = await UserModel.findOne({ email });
+//       res.json({
+//          success: true,
+//          accessToken,
+//          user: {
+//             name: user.name,
+//             email: user.email,
+//             image: user.image
+//          }
+//       });
+//    } catch (error) {
+//       console.error('Error changing password:', error);
+//       next(error);
+//    }
+// };
 
-      // user is not found
-      if (!user) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'User not found' });
-      }
+// // ********************** All Users ********************** //
+// export const getAllUsers = async (
+//    req: Request,
+//    res: Response,
+//    next: NextFunction
+// ): Promise<void | Response<any, Record<string, any>>> => {
+//    try {
+//       const users = await UserModel.find({}, { password: 0, __v: 0 });
 
-      // Compare password
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+//       res.json({ success: true, users });
+//    } catch (error) {
+//       console.error('Error getting all users:', error);
+//       next(error);
+//    }
+// };
 
-      if (!isPasswordValid) {
-         return res
-            .status(401)
-            .json({ success: false, error: 'Invalid password' });
-      }
+// // ********************** Delete User ********************** //
+// export const deleteUser = async (
+//    req: Request,
+//    res: Response,
+//    next: NextFunction
+// ): Promise<void | Response<any, Record<string, any>>> => {
+//    // Express-validator
+//    const errors = validationResult(req);
+//    if (!errors.isEmpty()) {
+//       return res.status(422).json({ success: false, errors: errors.array() });
+//    }
+//    const { email, password } = req.body;
 
-      // Delete user
-      await UserModel.findByIdAndDelete(user._id);
+//    try {
+//       // Find the user
+//       const user = await UserModel.findOne({ email });
 
-      res.json({ success: true, message: 'User deleted successfully' });
-   } catch (error) {
-      console.error('Error deleting user:', error);
-      next(error);
-   }
-};
+//       // user is not found
+//       if (!user) {
+//          return res
+//             .status(404)
+//             .json({ success: false, error: 'User not found' });
+//       }
+
+//       // Compare password
+//       const isPasswordValid = await bcrypt.compare(password, user.password);
+
+//       if (!isPasswordValid) {
+//          return res
+//             .status(401)
+//             .json({ success: false, error: 'Invalid password' });
+//       }
+
+//       // Delete user
+//       await UserModel.findByIdAndDelete(user._id);
+
+//       res.json({ success: true, message: 'User deleted successfully' });
+//    } catch (error) {
+//       console.error('Error deleting user:', error);
+//       next(error);
+//    }
+// };

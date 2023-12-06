@@ -1,10 +1,9 @@
 // src/app.ts
 import dotenv from 'dotenv';
 import express from 'express';
-import configureApp from './config/config';
-import connectToDatabase from './config/db';
-import errorHandler from './config/errorHandler';
-import createRoutes from './config/router';
+import configureApp from './src/config/config';
+import errorHandler from './src/config/errorHandler';
+import createRoutes from './src/config/router';
 
 dotenv.config();
 const app = express();
@@ -14,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 configureApp(app);
 
 // MongoDB connection
-connectToDatabase();
+// connectToDatabase();
 
 // Main Route
 createRoutes(app);
