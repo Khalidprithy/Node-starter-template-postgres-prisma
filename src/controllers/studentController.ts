@@ -1,5 +1,7 @@
+import { PrismaClient } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
-import Student from '../models/Student';
+
+const prisma = new PrismaClient();
 
 export const getAllStudents = async (
    req: Request,
@@ -7,7 +9,7 @@ export const getAllStudents = async (
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
-      const students = await Student.find();
+      const students = await prisma.student.findMany();
       res.status(200).json({ success: true, data: students });
    } catch (error) {
       console.error(error);
@@ -23,15 +25,16 @@ export const createStudent = async (
    try {
       const { name, age, className, admissionDate } = req.body;
 
-      const newStudent = new Student({
-         name,
-         age,
-         className,
-         admissionDate
+      const newStudent = await prisma.student.create({
+         data: {
+            name,
+            age,
+            className,
+            admissionDate
+         }
       });
 
-      const savedStudent = await newStudent.save();
-      res.status(201).json({ success: true, data: savedStudent });
+      res.status(201).json({ success: true, data: newStudent });
    } catch (error) {
       console.error(error);
       next(error);
@@ -47,28 +50,16 @@ export const updateStudent = async (
       const { id } = req.params;
       const { name, age, className, admissionDate } = req.body;
 
-      // Validate that the student ID is valid
-      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res
-            .status(400)
-            .json({ success: false, error: 'Invalid student ID' });
-      }
+      const updatedStudent = await prisma.student.update({
+         where: { id: parseInt(id, 10) },
+         data: {
+            name,
+            age,
+            className,
+            admissionDate
+         }
+      });
 
-      // Validate that the student with the given ID exists
-      const existingStudent = await Student.findById(id);
-      if (!existingStudent) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'Student not found' });
-      }
-
-      // Update student fields
-      existingStudent.name = name;
-      existingStudent.age = age;
-      existingStudent.className = className;
-      existingStudent.admissionDate = admissionDate;
-
-      const updatedStudent = await existingStudent.save();
       res.status(200).json({ success: true, data: updatedStudent });
    } catch (error) {
       console.error(error);
@@ -84,22 +75,10 @@ export const deleteStudent = async (
    try {
       const { id } = req.params;
 
-      // Validate that the student ID is valid
-      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res
-            .status(400)
-            .json({ success: false, error: 'Invalid student ID' });
-      }
+      await prisma.student.delete({
+         where: { id: parseInt(id, 10) }
+      });
 
-      // Validate that the student with the given ID exists
-      const existingStudent = await Student.findById(id);
-      if (!existingStudent) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'Student not found' });
-      }
-
-      await existingStudent.deleteOne();
       res.status(204).send({
          success: true,
          message: 'Student deleted successfully'

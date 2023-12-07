@@ -14,7 +14,8 @@
    "scripts": {
       "start": "npm run prisma && node index.ts",
       "start-dev": "nodemon index.ts",
-      "prisma": "prisma generate"
+      "prisma": "prisma generate",
+      "prisma:generate": "prisma generate"
    },
    "engines": {
       "node": ">=16.13"
@@ -39,6 +40,6 @@
       "helmet": "^7.1.0",
       "jsonwebtoken": "^9.0.2",
       "mongoose": "^8.0.1",
-      "prisma": "^5.7.0"
+      "prisma": "^4.16.2"
    }
 }

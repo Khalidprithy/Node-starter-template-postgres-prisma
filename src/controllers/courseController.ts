@@ -1,5 +1,7 @@
+import { PrismaClient } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
-import Course from '../models/Course';
+
+const prisma = new PrismaClient();
 
 export const getAllCourses = async (
    req: Request,
@@ -7,7 +9,7 @@ export const getAllCourses = async (
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
-      const courses = await Course.find();
+      const courses = await prisma.course.findMany();
       res.status(200).json({ success: true, data: courses });
    } catch (error) {
       console.error(error);
@@ -24,16 +26,17 @@ export const createCourse = async (
       const { courseName, instructor, duration, enrollmentCount, price } =
          req.body;
 
-      const newCourse = new Course({
-         courseName,
-         instructor,
-         duration,
-         enrollmentCount,
-         price
+      const newCourse = await prisma.course.create({
+         data: {
+            courseName,
+            instructor,
+            duration,
+            enrollmentCount,
+            price
+         }
       });
 
-      const savedCourse = await newCourse.save();
-      res.status(201).json({ success: true, data: savedCourse });
+      res.status(201).json({ success: true, data: newCourse });
    } catch (error) {
       console.error(error);
       next(error);
@@ -50,29 +53,17 @@ export const updateCourse = async (
       const { courseName, instructor, duration, enrollmentCount, price } =
          req.body;
 
-      // Validate that the course ID is valid
-      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res
-            .status(400)
-            .json({ success: true, error: 'Invalid course ID' });
-      }
+      const updatedCourse = await prisma.course.update({
+         where: { id: parseInt(id, 10) },
+         data: {
+            courseName,
+            instructor,
+            duration,
+            enrollmentCount,
+            price
+         }
+      });
 
-      // Validate that the course with the given ID exists
-      const existingCourse = await Course.findById(id);
-      if (!existingCourse) {
-         return res
-            .status(404)
-            .json({ success: true, error: 'Course not found' });
-      }
-
-      // Update course fields
-      existingCourse.courseName = courseName;
-      existingCourse.instructor = instructor;
-      existingCourse.duration = duration;
-      existingCourse.enrollmentCount = enrollmentCount;
-      existingCourse.price = price;
-
-      const updatedCourse = await existingCourse.save();
       res.status(200).json({ success: true, data: updatedCourse });
    } catch (error) {
       console.error(error);
@@ -88,22 +79,10 @@ export const deleteCourse = async (
    try {
       const { id } = req.params;
 
-      // Validate that the course ID is valid
-      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res
-            .status(400)
-            .json({ success: true, error: 'Invalid course ID' });
-      }
+      await prisma.course.delete({
+         where: { id: parseInt(id, 10) }
+      });
 
-      // Validate that the course with the given ID exists
-      const existingCourse = await Course.findById(id);
-      if (!existingCourse) {
-         return res
-            .status(404)
-            .json({ success: true, error: 'Course not found' });
-      }
-
-      await existingCourse.deleteOne();
       res.status(204).send({
          success: true,
          message: 'Course deleted successfully'

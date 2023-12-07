@@ -1,5 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
-import Employee from '../models/Employee';
+
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const getAllEmployees = async (
    req: Request,
@@ -7,7 +10,7 @@ export const getAllEmployees = async (
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
-      const employees = await Employee.find();
+      const employees = await prisma.employee.findMany();
       res.status(200).json({ success: true, data: employees });
    } catch (error) {
       console.error(error);
@@ -23,16 +26,17 @@ export const createEmployee = async (
    try {
       const { name, position, department, joinDate, salary } = req.body;
 
-      const newEmployee = new Employee({
-         name,
-         position,
-         department,
-         joinDate,
-         salary
+      const newEmployee = await prisma.employee.create({
+         data: {
+            name,
+            position,
+            department,
+            joinDate,
+            salary
+         }
       });
 
-      const savedEmployee = await newEmployee.save();
-      res.status(201).json({ success: true, data: savedEmployee });
+      res.status(201).json({ success: true, data: newEmployee });
    } catch (error) {
       console.error(error);
       next(error);
@@ -48,29 +52,17 @@ export const updateEmployee = async (
       const { id } = req.params;
       const { name, position, department, joinDate, salary } = req.body;
 
-      // Validate that the employee ID is valid
-      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res
-            .status(400)
-            .json({ success: false, error: 'Invalid employee ID' });
-      }
+      const updatedEmployee = await prisma.employee.update({
+         where: { id: parseInt(id, 10) },
+         data: {
+            name,
+            position,
+            department,
+            joinDate,
+            salary
+         }
+      });
 
-      // Validate that the employee with the given ID exists
-      const existingEmployee = await Employee.findById(id);
-      if (!existingEmployee) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'Employee not found' });
-      }
-
-      // Update employee fields
-      existingEmployee.name = name;
-      existingEmployee.position = position;
-      existingEmployee.department = department;
-      existingEmployee.joinDate = joinDate;
-      existingEmployee.salary = salary;
-
-      const updatedEmployee = await existingEmployee.save();
       res.status(200).json({ success: true, data: updatedEmployee });
    } catch (error) {
       console.error(error);
@@ -86,22 +78,10 @@ export const deleteEmployee = async (
    try {
       const { id } = req.params;
 
-      // Validate that the employee ID is valid
-      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res
-            .status(400)
-            .json({ success: false, error: 'Invalid employee ID' });
-      }
+      await prisma.employee.delete({
+         where: { id: parseInt(id, 10) }
+      });
 
-      // Validate that the employee with the given ID exists
-      const existingEmployee = await Employee.findById(id);
-      if (!existingEmployee) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'Employee not found' });
-      }
-
-      await existingEmployee.deleteOne();
       res.status(204).send({
          success: true,
          message: 'Employee deleted successfully'

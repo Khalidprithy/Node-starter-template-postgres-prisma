@@ -1,5 +1,7 @@
+import { PrismaClient } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
-import Blog from '../models/Blog';
+
+const prisma = new PrismaClient();
 
 export const getAllBlogs = async (
    req: Request,
@@ -7,7 +9,7 @@ export const getAllBlogs = async (
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
-      const blogs = await Blog.find();
+      const blogs = await prisma.blog.findMany();
       res.status(200).json({ success: true, data: blogs });
    } catch (error) {
       console.error(error);
@@ -23,16 +25,17 @@ export const createBlog = async (
    try {
       const { title, author, date, views, comments } = req.body;
 
-      const newBlog = new Blog({
-         title,
-         author,
-         date,
-         views,
-         comments
+      const newBlog = await prisma.blog.create({
+         data: {
+            title,
+            author,
+            date,
+            views,
+            comments
+         }
       });
 
-      const savedBlog = await newBlog.save();
-      res.status(201).json({ success: true, data: savedBlog });
+      res.status(201).json({ success: true, data: newBlog });
    } catch (error) {
       console.error(error);
       next(error);
@@ -55,22 +58,20 @@ export const updateBlog = async (
             .json({ success: false, error: 'Invalid blog ID' });
       }
 
-      // Validate that the blog with the given ID exists
-      const existingBlog = await Blog.findById(id);
-      if (!existingBlog) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'Blog not found' });
-      }
-
       // Update blog fields
-      existingBlog.title = title;
-      existingBlog.author = author;
-      existingBlog.date = date;
-      existingBlog.views = views;
-      existingBlog.comments = comments;
+      const updatedBlog = await prisma.blog.update({
+         where: {
+            id: parseInt(id, 10)
+         },
+         data: {
+            title,
+            author,
+            date,
+            views,
+            comments
+         }
+      });
 
-      const updatedBlog = await existingBlog.save();
       res.status(200).json({ success: true, data: updatedBlog });
    } catch (error) {
       console.error(error);
@@ -93,15 +94,13 @@ export const deleteBlog = async (
             .json({ success: false, error: 'Invalid blog ID' });
       }
 
-      // Validate that the blog with the given ID exists
-      const existingBlog = await Blog.findById(id);
-      if (!existingBlog) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'Blog not found' });
-      }
+      // Delete blog
+      await prisma.blog.delete({
+         where: {
+            id: parseInt(id, 10)
+         }
+      });
 
-      await existingBlog.deleteOne();
       res.status(204).send({
          success: true,
          message: 'Blog deleted successfully'

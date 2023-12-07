@@ -1,8 +1,9 @@
 // src/controllers/teacherController.ts
-
+import { PrismaClient } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
 import { validationResult } from 'express-validator';
-import TeacherModel from '../models/Teacher';
+
+const prisma = new PrismaClient();
 
 export const getAllTeachers = async (
    req: Request,
@@ -10,7 +11,7 @@ export const getAllTeachers = async (
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
-      const teachers = await TeacherModel.find();
+      const teachers = await prisma.teacher.findMany();
       res.json({ success: true, data: teachers });
    } catch (error) {
       console.error('Error fetching teachers:', error);
@@ -31,28 +32,28 @@ export const createTeacher = async (
    const { name, subject, qualification, experience, contactInfo } = req.body;
 
    try {
-      const teacherModel = new TeacherModel({
-         name,
-         subject,
-         qualification,
-         experience,
-         contactInfo
+      const newTeacher = await prisma.teacher.create({
+         data: {
+            name,
+            subject,
+            qualification,
+            experience,
+            contactInfo
+         }
       });
-
-      const savedTeacher = await teacherModel.save();
 
       res.json({
          success: true,
          teacher: {
-            name: savedTeacher.name,
-            subject: savedTeacher.subject,
-            qualification: savedTeacher.qualification,
-            experience: savedTeacher.experience,
-            contactInfo: savedTeacher.contactInfo
+            name: newTeacher.name,
+            subject: newTeacher.subject,
+            qualification: newTeacher.qualification,
+            experience: newTeacher.experience,
+            contactInfo: newTeacher.contactInfo
          }
       });
    } catch (error) {
-      console.error('Error saving teacher to MongoDB:', error);
+      console.error('Error saving teacher to Prisma:', error);
       next(error);
    }
 };
@@ -67,34 +68,29 @@ export const updateTeacher = async (
       return res.status(422).json({ success: false, errors: errors.array() });
    }
 
-   const teacherId = req.params.id;
+   const teacherId = parseInt(req.params.id, 10);
    const { name, subject, qualification, experience, contactInfo } = req.body;
 
    try {
-      const teacher = await TeacherModel.findById(teacherId);
-
-      if (!teacher) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'Teacher not found' });
-      }
-
-      teacher.name = name;
-      teacher.subject = subject;
-      teacher.qualification = qualification;
-      teacher.experience = experience;
-      teacher.contactInfo = contactInfo;
-
-      await teacher.save();
+      const updatedTeacher = await prisma.teacher.update({
+         where: { id: teacherId },
+         data: {
+            name,
+            subject,
+            qualification,
+            experience,
+            contactInfo
+         }
+      });
 
       res.json({
          success: true,
          teacher: {
-            name: teacher.name,
-            subject: teacher.subject,
-            qualification: teacher.qualification,
-            experience: teacher.experience,
-            contactInfo: teacher.contactInfo
+            name: updatedTeacher.name,
+            subject: updatedTeacher.subject,
+            qualification: updatedTeacher.qualification,
+            experience: updatedTeacher.experience,
+            contactInfo: updatedTeacher.contactInfo
          }
       });
    } catch (error) {
@@ -108,10 +104,12 @@ export const deleteTeacher = async (
    res: Response,
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
-   const teacherId = req.params.id;
+   const teacherId = parseInt(req.params.id, 10);
 
    try {
-      const deletedTeacher = await TeacherModel.findByIdAndDelete(teacherId);
+      const deletedTeacher = await prisma.teacher.delete({
+         where: { id: teacherId }
+      });
 
       if (!deletedTeacher) {
          return res

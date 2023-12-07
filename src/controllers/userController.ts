@@ -3,7 +3,8 @@ import bcrypt from 'bcrypt';
 import { NextFunction, Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import jwt from 'jsonwebtoken';
-import prisma from '../../prisma';
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 interface DecodedToken {
    userId: string;
@@ -31,18 +32,18 @@ export const createUser = async (
 
       const { name, email, password, role, image, designation } = req.body;
 
-      // const userExists = await prisma.user.findUnique({
-      //    where: {
-      //       email: email
-      //    }
-      // });
+      const userExists = await prisma.user.findUnique({
+         where: {
+            email: email
+         }
+      });
 
-      // if (userExists) {
-      //    res.status(422).json({
-      //       success: false,
-      //       error: 'User with the same email already exists. Please choose a different email.'
-      //    });
-      // }
+      if (userExists) {
+         res.status(422).json({
+            success: false,
+            error: 'User with the same email already exists. Please choose a different email.'
+         });
+      }
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -93,299 +94,351 @@ export const createUser = async (
    }
 };
 
-// // ********************** Login ********************** //
-// export const login = async (
-//    req: Request,
-//    res: Response,
-//    next: NextFunction
-// ): Promise<void | Response<any, Record<string, any>>> => {
-//    try {
-//       const errors = validationResult(req);
-//       if (!errors.isEmpty()) {
-//          return res
-//             .status(422)
-//             .json({ success: false, errors: errors.array() });
-//       }
+// ********************** Login ********************** //
+export const login = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+         return res
+            .status(422)
+            .json({ success: false, errors: errors.array() });
+      }
 
-//       const { email, password } = req.body;
+      const { email, password } = req.body;
 
-//       // Find the user
-//       const user = await UserModel.findOne({ email });
+      // Find the user
+      const user = await prisma.user.findUnique({
+         where: {
+            email: email
+         }
+      });
 
-//       // user is not found or password is invalid
-//       if (!user || !(await bcrypt.compare(password, user.password))) {
-//          return res
-//             .status(401)
-//             .json({ success: false, error: 'Invalid email or password' });
-//       }
+      // user is not found or password is invalid
+      if (!user || !(await bcrypt.compare(password, user.password))) {
+         return res
+            .status(401)
+            .json({ success: false, error: 'Invalid email or password' });
+      }
 
-//       // (access token and refresh token)
-//       const accessToken = generateToken(
-//          { userId: user._id, email: user.email },
-//          process.env.JWT_SECRET_ACCESS as string,
-//          '1h'
-//       );
-//       const refreshToken = generateToken(
-//          { name: user.name, email: user.email },
-//          process.env.JWT_SECRET_REFRESH as string,
-//          '7d'
-//       );
+      // (access token and refresh token)
+      const accessToken = generateToken(
+         { userId: user.id, email: user.email },
+         process.env.JWT_SECRET_ACCESS as string,
+         '1h'
+      );
+      const refreshToken = generateToken(
+         { name: user.name, email: user.email },
+         process.env.JWT_SECRET_REFRESH as string,
+         '7d'
+      );
 
-//       // Update the user document with the new refresh token
-//       await UserModel.updateOne({ email }, { refreshToken });
+      // Update the user document with the new refresh token
+      await prisma.user.update({
+         where: {
+            email: email
+         },
+         data: {
+            refreshToken: refreshToken
+         }
+      });
 
-//       // Res with http only cookie token
-//       res.cookie('jwt', refreshToken, {
-//          httpOnly: true,
-//          maxAge: 24 * 60 * 60 * 1000
-//       });
-//       res.json({
-//          success: true,
-//          accessToken,
-//          user: {
-//             name: user.name,
-//             email: user.email,
-//             image: user.image
-//          }
-//       });
-//    } catch (error) {
-//       console.error('Error during login:', error);
-//       next(error);
-//    }
-// };
+      // Res with http only cookie token
+      res.cookie('jwt', refreshToken, {
+         httpOnly: true,
+         maxAge: 24 * 60 * 60 * 1000
+      });
+      res.json({
+         success: true,
+         accessToken,
+         user: {
+            name: user.name,
+            email: user.email,
+            image: user.image
+         }
+      });
+   } catch (error) {
+      console.error('Error during login:', error);
+      next(error);
+   }
+};
 
-// // ********************** Token Refresh ********************** //
-// export const refreshAccessToken = async (
-//    req: Request,
-//    res: Response,
-//    next: NextFunction
-// ): Promise<void | Response<any, Record<string, any>>> => {
-//    try {
-//       const cookies = req.cookies;
+// ********************** Token Refresh ********************** //
+export const refreshAccessToken = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   try {
+      const cookies = req.cookies;
 
-//       if (!cookies?.jwt) {
-//          return res.status(401).json({
-//             success: false,
-//             error: 'Unauthorized: Missing refresh token'
-//          });
-//       }
+      if (!cookies?.jwt) {
+         return res.status(401).json({
+            success: false,
+            error: 'Unauthorized: Missing refresh token'
+         });
+      }
 
-//       const refreshToken = cookies.jwt;
+      const refreshToken = cookies.jwt;
 
-//       // Find the user
-//       const foundUser = await UserModel.findOne({ refreshToken });
+      // Find the user
+      const foundUser = await prisma.user.findUnique({
+         where: {
+            refreshToken: refreshToken
+         }
+      });
 
-//       // Check if it's a valid user
-//       if (!foundUser) {
-//          return res.status(403).json({
-//             success: false,
-//             error: 'Forbidden access: User not found'
-//          });
-//       }
+      // Check if it's a valid user
+      if (!foundUser) {
+         return res.status(403).json({
+            success: false,
+            error: 'Forbidden access: User not found'
+         });
+      }
 
-//       // Verify the refresh token
-//       jwt.verify(
-//          refreshToken,
-//          process.env.JWT_SECRET_REFRESH as string,
-//          (err: any, decoded: any) => {
-//             if (err || foundUser.email !== decoded.email) {
-//                return res.status(403).json({
-//                   success: false,
-//                   error: 'Forbidden access: Invalid refresh token'
-//                });
-//             }
+      // Verify the refresh token
+      jwt.verify(
+         refreshToken,
+         process.env.JWT_SECRET_REFRESH as string,
+         (err: any, decoded: any) => {
+            if (err || foundUser.email !== decoded.email) {
+               return res.status(403).json({
+                  success: false,
+                  error: 'Forbidden access: Invalid refresh token'
+               });
+            }
 
-//             // Extract userId and email from the decoded refresh token
-//             const { name, email } = decoded as {
-//                name: string;
-//                email: string;
-//             };
+            // Extract userId and email from the decoded refresh token
+            const { name, email } = decoded as {
+               name: string;
+               email: string;
+            };
 
-//             // Generate a new access token
-//             const newAccessToken = generateToken(
-//                { name, email },
-//                process.env.JWT_SECRET_ACCESS as string,
-//                '1h'
-//             );
+            // Generate a new access token
+            const newAccessToken = generateToken(
+               { name, email },
+               process.env.JWT_SECRET_ACCESS as string,
+               '1h'
+            );
 
-//             res.json({
-//                success: true,
-//                accessToken: newAccessToken
-//             });
-//          }
-//       );
-//    } catch (error) {
-//       console.error('Error refreshing access token:', error);
-//       next(error);
-//    }
-// };
+            res.json({
+               success: true,
+               accessToken: newAccessToken
+            });
+         }
+      );
+   } catch (error) {
+      console.error('Error refreshing access token:', error);
+      next(error);
+   }
+};
 
-// // ********************** Update Profile ********************** //
-// export const updateUser = async (
-//    req: Request,
-//    res: Response,
-//    next: NextFunction
-// ): Promise<void | Response<any, Record<string, any>>> => {
-//    // Express-validator
-//    const errors = validationResult(req);
-//    if (!errors.isEmpty()) {
-//       return res.status(422).json({ success: false, errors: errors.array() });
-//    }
+// ********************** Update Profile ********************** //
+export const updateUser = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   // Express-validator
+   const errors = validationResult(req);
+   if (!errors.isEmpty()) {
+      return res.status(422).json({ success: false, errors: errors.array() });
+   }
 
-//    const userId = req.params.id;
-//    const { name, image, designation } = req.body;
+   const userId = parseInt(req.params.id, 10);
+   const { name, image, designation } = req.body;
 
-//    try {
-//       // Find the user
-//       const user = await UserModel.findById(userId);
+   try {
+      // Find the user
+      const user = await prisma.user.findUnique({
+         where: {
+            id: userId
+         }
+      });
 
-//       // user is not found
-//       if (!user) {
-//          return res
-//             .status(404)
-//             .json({ success: false, error: 'User not found' });
-//       }
+      // user is not found
+      if (!user) {
+         return res
+            .status(404)
+            .json({ success: false, error: 'User not found' });
+      }
 
-//       user.name = name || user.name;
-//       user.image = image || user.image;
-//       user.designation = designation || user.designation;
-//       await user.save();
+      // Update user fields
+      const updatedUser = await prisma.user.update({
+         where: {
+            id: userId
+         },
+         data: {
+            name: name || user.name,
+            image: image || user.image,
+            designation: designation || user.designation
+         }
+      });
 
-//       res.json({
-//          success: true,
-//          user: {
-//             name: user.name,
-//             email: user.email,
-//             image: user.image,
-//             designation: user.designation
-//          }
-//       });
-//    } catch (error) {
-//       console.error('Error updating user:', error);
-//       next(error);
-//    }
-// };
+      res.json({
+         success: true,
+         user: {
+            name: updatedUser.name,
+            email: updatedUser.email,
+            image: updatedUser.image,
+            designation: updatedUser.designation
+         }
+      });
+   } catch (error) {
+      console.error('Error updating user:', error);
+      next(error);
+   }
+};
 
-// // ********************** Change Password ********************** //
-// export const changePassword = async (
-//    req: Request,
-//    res: Response,
-//    next: NextFunction
-// ): Promise<void | Response<any, Record<string, any>>> => {
-//    try {
-//       const errors = validationResult(req);
-//       if (!errors.isEmpty()) {
-//          return res
-//             .status(422)
-//             .json({ success: false, errors: errors.array() });
-//       }
+// ********************** Change Password ********************** //
+export const changePassword = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+         return res
+            .status(422)
+            .json({ success: false, errors: errors.array() });
+      }
 
-//       const userId = req.params.id;
-//       const { oldPassword, newPassword } = req.body;
+      const userId = parseInt(req.params.id, 10); // Assuming userId is a number
+      const { oldPassword, newPassword } = req.body;
 
-//       // Find the user
-//       const user = await UserModel.findById(userId);
+      // Find the user
+      const user = await prisma.user.findUnique({
+         where: {
+            id: userId
+         }
+      });
 
-//       // user is not found
-//       if (!user) {
-//          return res
-//             .status(404)
-//             .json({ success: false, error: 'User not found' });
-//       }
+      // user is not found
+      if (!user) {
+         return res
+            .status(404)
+            .json({ success: false, error: 'User not found' });
+      }
 
-//       // Compare old password
-//       const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+      // Compare old password
+      const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
 
-//       if (!isPasswordValid) {
-//          return res
-//             .status(401)
-//             .json({ success: false, error: 'Invalid old password' });
-//       }
+      if (!isPasswordValid) {
+         return res
+            .status(401)
+            .json({ success: false, error: 'Invalid old password' });
+      }
 
-//       // Hash new password
-//       const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      // Hash new password
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-//       // Update user's password
-//       user.password = hashedNewPassword;
-//       await user.save();
+      // Update user's password
+      const updatedUser = await prisma.user.update({
+         where: {
+            id: userId
+         },
+         data: {
+            password: hashedNewPassword
+         }
+      });
 
-//       // (access token)
-//       const accessToken = generateToken(
-//          { userId: user._id, email: user.email },
-//          process.env.JWT_SECRET_ACCESS as string,
-//          '1h'
-//       );
+      // (access token)
+      const accessToken = generateToken(
+         { userId: updatedUser.id, email: updatedUser.email },
+         process.env.JWT_SECRET_ACCESS as string,
+         '1h'
+      );
 
-//       res.json({
-//          success: true,
-//          accessToken,
-//          user: {
-//             name: user.name,
-//             email: user.email,
-//             image: user.image
-//          }
-//       });
-//    } catch (error) {
-//       console.error('Error changing password:', error);
-//       next(error);
-//    }
-// };
+      res.json({
+         success: true,
+         accessToken,
+         user: {
+            name: updatedUser.name,
+            email: updatedUser.email,
+            image: updatedUser.image
+         }
+      });
+   } catch (error) {
+      console.error('Error changing password:', error);
+      next(error);
+   }
+};
 
-// // ********************** All Users ********************** //
-// export const getAllUsers = async (
-//    req: Request,
-//    res: Response,
-//    next: NextFunction
-// ): Promise<void | Response<any, Record<string, any>>> => {
-//    try {
-//       const users = await UserModel.find({}, { password: 0, __v: 0 });
+// ********************** All Users ********************** //
+export const getAllUsers = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   try {
+      const users = await prisma.user.findMany({
+         select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            designation: true
+         }
+      });
+      res.json({ success: true, users });
+   } catch (error) {
+      console.error('Error getting all users:', error);
+      next(error);
+   }
+};
 
-//       res.json({ success: true, users });
-//    } catch (error) {
-//       console.error('Error getting all users:', error);
-//       next(error);
-//    }
-// };
+// ********************** Delete User ********************** //
+export const deleteUser = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   // Express-validator
+   const errors = validationResult(req);
+   if (!errors.isEmpty()) {
+      return res.status(422).json({ success: false, errors: errors.array() });
+   }
 
-// // ********************** Delete User ********************** //
-// export const deleteUser = async (
-//    req: Request,
-//    res: Response,
-//    next: NextFunction
-// ): Promise<void | Response<any, Record<string, any>>> => {
-//    // Express-validator
-//    const errors = validationResult(req);
-//    if (!errors.isEmpty()) {
-//       return res.status(422).json({ success: false, errors: errors.array() });
-//    }
-//    const { email, password } = req.body;
+   const { email, password } = req.body;
 
-//    try {
-//       // Find the user
-//       const user = await UserModel.findOne({ email });
+   try {
+      // Find the user
+      const user = await prisma.user.findUnique({
+         where: {
+            email: email
+         }
+      });
 
-//       // user is not found
-//       if (!user) {
-//          return res
-//             .status(404)
-//             .json({ success: false, error: 'User not found' });
-//       }
+      // user is not found
+      if (!user) {
+         return res
+            .status(404)
+            .json({ success: false, error: 'User not found' });
+      }
 
-//       // Compare password
-//       const isPasswordValid = await bcrypt.compare(password, user.password);
+      // Compare password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
 
-//       if (!isPasswordValid) {
-//          return res
-//             .status(401)
-//             .json({ success: false, error: 'Invalid password' });
-//       }
+      if (!isPasswordValid) {
+         return res
+            .status(401)
+            .json({ success: false, error: 'Invalid password' });
+      }
 
-//       // Delete user
-//       await UserModel.findByIdAndDelete(user._id);
+      // Delete user
+      await prisma.user.delete({
+         where: {
+            id: user.id
+         }
+      });
 
-//       res.json({ success: true, message: 'User deleted successfully' });
-//    } catch (error) {
-//       console.error('Error deleting user:', error);
-//       next(error);
-//    }
-// };
+      res.json({ success: true, message: 'User deleted successfully' });
+   } catch (error) {
+      console.error('Error deleting user:', error);
+      next(error);
+   }
+};

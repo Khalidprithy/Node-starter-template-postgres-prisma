@@ -1,5 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
-import School from '../models/School';
+
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const createSchool = async (
    req: Request,
@@ -9,25 +12,28 @@ export const createSchool = async (
    try {
       const { name, location, students, teachers, foundedYear } = req.body;
 
-      // Validate that the school with the same name doesn't already exist
-      const existingSchool = await School.findOne({ name });
-      if (existingSchool) {
-         return res.status(400).json({
-            success: false,
-            error: 'School with the same name already exists'
-         });
-      }
+      // // Validate that the school with the same name doesn't already exist
+      // const existingSchool = await prisma.school.findUnique({
+      //    where: { name },
+      // });
+      // if (existingSchool) {
+      //    return res.status(400).json({
+      //       success: false,
+      //       error: 'School with the same name already exists',
+      //    });
+      // }
 
-      const newSchool = new School({
-         name,
-         location,
-         students,
-         teachers,
-         foundedYear
+      const newSchool = await prisma.school.create({
+         data: {
+            name,
+            location,
+            students,
+            teachers,
+            foundedYear
+         }
       });
 
-      const savedSchool = await newSchool.save();
-      res.status(201).json({ success: true, data: savedSchool });
+      res.status(201).json({ success: true, data: newSchool });
    } catch (error) {
       console.error(error);
       next(error);
@@ -40,7 +46,7 @@ export const getAllSchools = async (
    next: NextFunction
 ): Promise<void | Response<any, Record<string, any>>> => {
    try {
-      const schools = await School.find();
+      const schools = await prisma.school.findMany();
       res.status(200).json({ success: true, data: schools });
    } catch (error) {
       console.error(error);
@@ -57,29 +63,17 @@ export const updateSchool = async (
       const { id } = req.params;
       const { name, location, students, teachers, foundedYear } = req.body;
 
-      // Validate that the school ID is valid
-      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res
-            .status(400)
-            .json({ success: false, error: 'Invalid school ID' });
-      }
+      const updatedSchool = await prisma.school.update({
+         where: { id: parseInt(id, 10) },
+         data: {
+            name,
+            location,
+            students,
+            teachers,
+            foundedYear
+         }
+      });
 
-      // Validate that the school with the given ID exists
-      const existingSchool = await School.findById(id);
-      if (!existingSchool) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'School not found' });
-      }
-
-      // Update school fields
-      existingSchool.name = name;
-      existingSchool.location = location;
-      existingSchool.students = students;
-      existingSchool.teachers = teachers;
-      existingSchool.foundedYear = foundedYear;
-
-      const updatedSchool = await existingSchool.save();
       res.status(200).json({ success: true, data: updatedSchool });
    } catch (error) {
       console.error(error);
@@ -95,26 +89,14 @@ export const deleteSchool = async (
    try {
       const { id } = req.params;
 
-      // Validate that the school ID is valid
-      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
-         return res
-            .status(400)
-            .json({ success: false, error: 'Invalid school ID' });
-      }
+      await prisma.school.delete({
+         where: { id: parseInt(id, 10) }
+      });
 
-      // Validate that the school with the given ID exists
-      const existingSchool = await School.findById(id);
-      if (!existingSchool) {
-         return res
-            .status(404)
-            .json({ success: false, error: 'School not found' });
-      }
-
-      await existingSchool.deleteOne({
+      res.status(204).send({
          success: true,
          message: 'School deleted successfully'
       });
-      res.status(204).send();
    } catch (error) {
       console.error(error);
       next(error);

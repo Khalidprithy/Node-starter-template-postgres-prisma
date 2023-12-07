@@ -1,27 +1,106 @@
 // schema.prisma
 
 generator client {
-  provider = "prisma-client-ts"
+    provider = "prisma-client-js"
 }
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  
+  datasource db {
+    provider = "postgresql"
+    url = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
 }
+  
+  model User {
+    id           Int @id @default (autoincrement())
+    name         String @db.VarChar(255)
+    email        String @unique @db.VarChar(255)
+    password     String @db.VarChar(255)
+    role         String @db.VarChar(255)
+    image        String @db.VarChar(255)
+    designation  String @db.VarChar(255)
+    refreshToken String @unique @db.VarChar(255)
+  
+    createdAt    DateTime @default (now()) @db.Timestamp(6)
+    updatedAt    DateTime @updatedAt @db.Timestamp(6)
 
-model User {
-  id           Int      @id @default(autoincrement())
-  name         String   @db.VarChar(255)
-  email        String   @unique @db.VarChar(255)
-  password     String   @db.VarChar(255)
-  role         String   @db.VarChar(255)
-  image        String   @db.VarChar(255)
-  designation  String   @db.VarChar(255)
-  refreshToken String  @unique @db.VarChar(255)
-
-  createdAt    DateTime @default(now()) @db.Timestamp(6)
-  updatedAt    DateTime @updatedAt @db.Timestamp(6)
-
-  // Define any other fields or relationships here
+    // Define any other fields or relationships here
+}
+  
+  model Blog {
+    id      Int @id @default (autoincrement())
+    title   String @db.VarChar(255)
+    author  String @db.VarChar(255)
+    date    DateTime
+    views   Int
+    comments Int
+    createdAt DateTime @default (now()) @db.Timestamp(6)
+    updatedAt DateTime @updatedAt @db.Timestamp(6)
+}
+   
+  model Course {
+    id              Int @id @default (autoincrement())
+    courseName      String @db.VarChar(255)
+    instructor      String @db.VarChar(255)
+    duration        Int
+    enrollmentCount Int
+    price           String @db.VarChar(255)
+    createdAt       DateTime @default (now()) @db.Timestamp(6)
+    updatedAt       DateTime @updatedAt @db.Timestamp(6)
+}
+  
+  
+  model Employee {
+    id         Int @id @default (autoincrement())
+    name       String @db.VarChar(255)
+    position   String @db.VarChar(255)
+    department String @db.VarChar(255)
+    joinDate   DateTime
+    salary     String @db.VarChar(255)
+    createdAt  DateTime @default (now()) @db.Timestamp(6)
+    updatedAt  DateTime @updatedAt @db.Timestamp(6)
+}
+  
+  
+  model Event {
+    id    Int @id @default (autoincrement())
+    title String @db.VarChar(255)
+    start DateTime
+    end   DateTime
+    createdAt DateTime @default (now()) @db.Timestamp(6)
+    updatedAt DateTime @updatedAt @db.Timestamp(6)
+}
+  
+  
+  model School {
+    id         Int @id @default (autoincrement())
+    name       String @db.VarChar(255)
+    location   String @db.VarChar(255)
+    students   Int
+    teachers   Int
+    foundedYear Int
+    createdAt  DateTime @default (now()) @db.Timestamp(6)
+    updatedAt  DateTime @updatedAt @db.Timestamp(6)
+}
+  
+  
+  model Student {
+    id             Int @id @default (autoincrement())
+    name           String @db.VarChar(255)
+    age            Int
+    className      String @db.VarChar(255)
+    admissionDate  DateTime
+    createdAt      DateTime @default (now()) @db.Timestamp(6)
+    updatedAt      DateTime @updatedAt @db.Timestamp(6)
+}
+  
+  
+  model Teacher {
+    id             Int @id @default (autoincrement())
+    name           String @db.VarChar(255)
+    subject        String @db.VarChar(255)
+    qualification  String @db.VarChar(255)
+    experience     Int
+    contactInfo    String @db.VarChar(255)
+    createdAt      DateTime @default (now()) @db.Timestamp(6)
+    updatedAt      DateTime @updatedAt @db.Timestamp(6)
 }
