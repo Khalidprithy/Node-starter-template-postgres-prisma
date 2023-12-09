@@ -166,6 +166,44 @@ export const login = async (
    }
 };
 
+// ********************** Logout ********************** //
+export const logout = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+         return res
+            .status(422)
+            .json({ success: false, errors: errors.array() });
+      }
+      // Clear the refresh token in the database
+      const email = req.body.email;
+
+      await prisma.user.update({
+         where: {
+            email: email
+         },
+         data: {
+            refreshToken: undefined
+         }
+      });
+
+      // Clear the JWT cookie on the client-side
+      res.clearCookie('jwt');
+
+      res.json({
+         success: true,
+         message: 'Logout successful'
+      });
+   } catch (error) {
+      console.error('Error during logout:', error);
+      next(error);
+   }
+};
+
 // ********************** Token Refresh ********************** //
 export const refreshAccessToken = async (
    req: Request,
@@ -289,6 +327,50 @@ export const updateUser = async (
       });
    } catch (error) {
       console.error('Error updating user:', error);
+      next(error);
+   }
+};
+
+// ********************** Update Profile ********************** //
+export const userProfile = async (
+   req: Request,
+   res: Response,
+   next: NextFunction
+): Promise<void | Response<any, Record<string, any>>> => {
+   // Express-validator
+   const errors = validationResult(req);
+   if (!errors.isEmpty()) {
+      return res.status(422).json({ success: false, errors: errors.array() });
+   }
+
+   const userId = parseInt(req.params.id, 10);
+
+   try {
+      // Find the user
+      const user = await prisma.user.findUnique({
+         where: {
+            id: userId
+         }
+      });
+
+      // user is not found
+      if (!user) {
+         return res
+            .status(404)
+            .json({ success: false, error: 'User not found' });
+      }
+
+      res.json({
+         success: true,
+         user: {
+            name: user.name,
+            email: user.email,
+            image: user.image,
+            designation: user.designation
+         }
+      });
+   } catch (error) {
+      console.error('Error finding user:', error);
       next(error);
    }
 };
