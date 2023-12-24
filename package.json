@@ -1,5 +1,5 @@
 {
-   "name": "blackborad-backend",
+   "name": "backend-template-02",
    "version": "1.0.0",
    "main": "index.js",
    "devDependencies": {
@@ -21,9 +21,9 @@
       "node": ">=16.13"
    },
    "keywords": [],
-   "author": "",
+   "author": "Dev.Kbin",
    "license": "ISC",
-   "description": "",
+   "description": "A backend server starter template built with Node.js, Express.js, TypeScript, Postgres, and Prisma.",
    "dependencies": {
       "@prisma/client": "^4.16.2",
       "@types/bcrypt": "^5.0.2",

@@ -3,18 +3,10 @@ import bcrypt from 'bcrypt';
 import { NextFunction, Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import jwt from 'jsonwebtoken';
+import { generateJWT } from '../helpers/generateJWT';
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-
-interface DecodedToken {
-   userId: string;
-   email: string;
-}
-
-// Helpers
-const generateToken = (payload: any, secret: string, expiresIn: string) => {
-   return jwt.sign(payload, secret, { expiresIn });
-};
 
 // ********************** Registration ********************** //
 export const createUser = async (
@@ -47,7 +39,7 @@ export const createUser = async (
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const refreshToken = generateToken(
+      const refreshToken = generateJWT(
          { name: name, email: email },
          process.env.JWT_SECRET_REFRESH as string,
          '7d'
@@ -67,7 +59,7 @@ export const createUser = async (
 
       // const savedUser = await userModel.save();
 
-      const accessToken = generateToken(
+      const accessToken = generateJWT(
          { userId: savedUser.id, email: savedUser.email },
          process.env.JWT_SECRET_ACCESS as string,
          '1h'
@@ -76,7 +68,8 @@ export const createUser = async (
       // Res with http only cookie token
       res.cookie('jwt', refreshToken, {
          httpOnly: true,
-         maxAge: 24 * 60 * 60 * 1000
+         maxAge: 24 * 60 * 60 * 1000,
+         secure: true
       });
       res.json({
          success: true,
@@ -89,7 +82,7 @@ export const createUser = async (
          }
       });
    } catch (error) {
-      console.error('Error saving user to MongoDB:', error);
+      console.error('Error saving user to server:', error);
       next(error);
    }
 };
@@ -119,18 +112,19 @@ export const login = async (
 
       // user is not found or password is invalid
       if (!user || !(await bcrypt.compare(password, user.password))) {
-         return res
-            .status(401)
-            .json({ success: false, error: 'Invalid email or password' });
+         return res.status(401).json({
+            success: false,
+            error: 'Invalid email or password'
+         });
       }
 
       // (access token and refresh token)
-      const accessToken = generateToken(
+      const accessToken = generateJWT(
          { userId: user.id, email: user.email },
          process.env.JWT_SECRET_ACCESS as string,
          '1h'
       );
-      const refreshToken = generateToken(
+      const refreshToken = generateJWT(
          { name: user.name, email: user.email },
          process.env.JWT_SECRET_REFRESH as string,
          '7d'
@@ -149,7 +143,8 @@ export const login = async (
       // Res with http only cookie token
       res.cookie('jwt', refreshToken, {
          httpOnly: true,
-         maxAge: 24 * 60 * 60 * 1000
+         maxAge: 24 * 60 * 60 * 1000,
+         secure: true
       });
       res.json({
          success: true,
@@ -192,7 +187,7 @@ export const logout = async (
       });
 
       // Clear the JWT cookie on the client-side
-      res.clearCookie('jwt');
+      res.clearCookie('jwt', { httpOnly: true, secure: true });
 
       res.json({
          success: true,
@@ -256,7 +251,7 @@ export const refreshAccessToken = async (
             };
 
             // Generate a new access token
-            const newAccessToken = generateToken(
+            const newAccessToken = generateJWT(
                { name, email },
                process.env.JWT_SECRET_ACCESS as string,
                '1h'
@@ -410,9 +405,10 @@ export const changePassword = async (
       const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
 
       if (!isPasswordValid) {
-         return res
-            .status(401)
-            .json({ success: false, error: 'Invalid old password' });
+         return res.status(401).json({
+            success: false,
+            error: 'Invalid old password'
+         });
       }
 
       // Hash new password
@@ -429,7 +425,7 @@ export const changePassword = async (
       });
 
       // (access token)
-      const accessToken = generateToken(
+      const accessToken = generateJWT(
          { userId: updatedUser.id, email: updatedUser.email },
          process.env.JWT_SECRET_ACCESS as string,
          '1h'

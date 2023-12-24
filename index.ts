@@ -29,5 +29,5 @@ app.use(errorHandler);
 
 // Start the server
 app.listen(PORT, () => {
-   console.log(`BlackBoard Backend running on port ${PORT}`);
+   console.log(`Backend Server running on port ${PORT}`);
 });
