@@ -8,8 +8,10 @@ import {
    deleteUser,
    getAllUsers,
    login,
+   logout,
    refreshAccessToken,
-   updateUser
+   updateUser,
+   userProfile
 } from '../controllers/userController';
 
 const router = express.Router();
@@ -44,6 +46,9 @@ const createUserValidation = [
 // login Route Validation
 const loginValidation = [emailValidation, passwordValidation];
 
+// login Route Validation
+const logoutValidation = [emailValidation];
+
 // Update User Route Validation
 const updateUserValidation = [
    nameValidation,
@@ -57,9 +62,11 @@ const changePasswordValidation = [passwordValidation, newPasswordValidation];
 // Delete User Route Validation
 const deleteUserValidation = [emailValidation, passwordValidation];
 
-router.get('/all', getAllUsers);
 router.post('/create', createUserValidation, createUser);
 router.post('/login', loginValidation, login);
+router.post('/logout', logoutValidation, logout);
+router.get('/all', getAllUsers);
+router.get('/profile/:id', userProfile);
 router.put('/update/:id', updateUserValidation, updateUser);
 router.post('/change-password/:id', changePasswordValidation, changePassword);
 router.delete('/delete', deleteUserValidation, deleteUser);
